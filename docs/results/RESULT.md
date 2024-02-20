@@ -30,3 +30,5 @@
 
 Пример работы приложения ниже:
 
+https://github.com/MaksLachugin/surf-flutter-study-jam-5/assets/71094259/cb067a18-6c2e-4626-b9ed-10b2788ca614
+
