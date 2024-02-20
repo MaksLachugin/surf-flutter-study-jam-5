@@ -1,4 +1,14 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:meme_generator/widgets/meme_form_widget.dart';
+import 'package:meme_generator/widgets/meme_image_widget.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class MemeGeneratorScreen extends StatefulWidget {
   const MemeGeneratorScreen({Key? key}) : super(key: key);
@@ -10,8 +20,10 @@ class MemeGeneratorScreen extends StatefulWidget {
 }
 
 class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
+  File? selectedImage;
   var visible = true;
   final formKey = GlobalKey<FormState>();
+  final screenKey = GlobalKey();
   var url =
       'https://i.cbc.ca/1.6713656.1679693029!/fileImage/httpImage/image.jpg_gen/derivatives/16x9_780/this-is-fine.jpg';
   var text = 'Здесь мог бы быть ваш мем';
@@ -20,6 +32,8 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
           'https://i.cbc.ca/1.6713656.1679693029!/fileImage/httpImage/image.jpg_gen/derivatives/16x9_780/this-is-fine.jpg');
   TextEditingController textController =
       TextEditingController(text: 'Здесь мог бы быть ваш мем');
+  ImagePicker picker = ImagePicker();
+  var isLocalImage = false;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +50,6 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
           if (formKey.currentState!.validate()) {
             setState(() {
               url = urlController.text;
-              text = textController.text;
             });
           }
         },
@@ -50,97 +63,71 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              DecoratedBox(
-                decoration: decoration,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 50,
-                    vertical: 20,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 200,
-                        child: DecoratedBox(
-                          decoration: decoration,
-                          child: Padding(
-                            padding: const EdgeInsets.all(4.0),
-                            child: Image.network(
-                              loadingBuilder:
-                                  (buildContext, object, stackTrace) =>
-                                      const Center(
-                                          child: CircularProgressIndicator()),
-                              errorBuilder:
-                                  (buildContext, object, stackTrace) =>
-                                      Image.asset("assets/def.jpg",
-                                          fit: BoxFit.cover),
-                              urlController.text,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        textController.text,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'Impact',
-                          fontSize: 40,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              RepaintBoundary(
+                key: screenKey,
+                child: MemeImageWidget(
+                    decoration: decoration,
+                    isLocalImage: isLocalImage,
+                    selectedImage: selectedImage,
+                    urlController: urlController,
+                    textController: textController),
               ),
-              Form(
-                  key: formKey,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: TextFormField(
-                          controller: urlController,
-                          validator: (value) {
-                            if (value!.isEmpty ||
-                                !RegExp(r'^(http|https):\/\/([\w.]+)+(:[0-9]{1,5})?(\/.*)?$')
-                                    .hasMatch(value)) {
-                              return "Enter correct URL";
-                            } else {
-                              return null;
-                            }
-                          },
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'URL',
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: TextFormField(
-                          controller: textController,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return "Enter text";
-                            }
-                            return null;
-                          },
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Text',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ))
+              MemeFormWidget(
+                  changeImageLocation: changeImageLocation,
+                  loadFromGallery: loadFromGallery,
+                  share: share,
+                  formKey: formKey,
+                  isLocalImage: isLocalImage,
+                  context: context,
+                  urlController: urlController,
+                  textController: textController),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void share() {
+    shareImageFromKey(screenKey);
+  }
+
+  void changeImageLocation(v) {
+    setState(() {
+      isLocalImage = v;
+    });
+  }
+
+  Future loadFromGallery() async {
+    XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+    setState(() {
+      selectedImage = File(image.path);
+    });
+  }
+
+  Future<void> shareImageFromKey(GlobalKey key) async {
+    final RenderRepaintBoundary boundary =
+        key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+
+    final image = await boundary.toImage(pixelRatio: 2.0);
+
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    final file = File(
+        '${(await getTemporaryDirectory()).path}/${DateTime.now().millisecondsSinceEpoch}.png');
+    await file.writeAsBytes(byteData!.buffer.asUint8List());
+
+    Future.delayed(const Duration(seconds: 0), () async {
+      Share.shareXFiles([XFile(file.path)], text: 'Демотиватор');
+    });
+  }
+
+  void setText(String value) {
+    if (value.isNotEmpty) {
+      setState(() {
+        text = textController.text;
+      });
+    }
   }
 }
