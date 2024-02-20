@@ -4,14 +4,18 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:meme_generator/widgets/meme_form_widget.dart';
-import 'package:meme_generator/widgets/meme_image_widget.dart';
+import 'package:meme_generator/repository/models/meme.dart';
+import 'package:meme_generator/repository/models/meme_template.dart';
+import 'package:meme_generator/widgets/meme_form_template_widget.dart';
+import 'package:meme_generator/widgets/meme_image_template_widget.dart';
+import 'package:meme_generator/widgets/nav_bar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class MemeGeneratorScreen extends StatefulWidget {
-  const MemeGeneratorScreen({Key? key}) : super(key: key);
+  final MemeTemplete memeTemplete;
+  const MemeGeneratorScreen({Key? key, required this.memeTemplete})
+      : super(key: key);
 
   @override
   State<MemeGeneratorScreen> createState() {
@@ -20,39 +24,19 @@ class MemeGeneratorScreen extends StatefulWidget {
 }
 
 class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
-  File? selectedImage;
-  var visible = true;
   final formKey = GlobalKey<FormState>();
   final screenKey = GlobalKey();
-  var url =
-      'https://i.cbc.ca/1.6713656.1679693029!/fileImage/httpImage/image.jpg_gen/derivatives/16x9_780/this-is-fine.jpg';
-  var text = 'Здесь мог бы быть ваш мем';
-  TextEditingController urlController = TextEditingController(
-      text:
-          'https://i.cbc.ca/1.6713656.1679693029!/fileImage/httpImage/image.jpg_gen/derivatives/16x9_780/this-is-fine.jpg');
-  TextEditingController textController =
-      TextEditingController(text: 'Здесь мог бы быть ваш мем');
-  ImagePicker picker = ImagePicker();
-  var isLocalImage = false;
 
   @override
   Widget build(BuildContext context) {
-    final decoration = BoxDecoration(
-      border: Border.all(
-        color: Colors.white,
-        width: 2,
-      ),
-    );
+    MemeTemplete memeTemplete = widget.memeTemplete;
+
+    Meme meme = memeTemplete.sample!;
     return Scaffold(
+      drawer: const NavBar(),
       backgroundColor: Colors.black,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (formKey.currentState!.validate()) {
-            setState(() {
-              url = urlController.text;
-            });
-          }
-        },
+        onPressed: () {},
         tooltip: 'Increment',
         child: const Icon(Icons.update),
       ),
@@ -65,22 +49,19 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
             children: [
               RepaintBoundary(
                 key: screenKey,
-                child: MemeImageWidget(
-                    decoration: decoration,
-                    isLocalImage: isLocalImage,
-                    selectedImage: selectedImage,
-                    urlController: urlController,
-                    textController: textController),
+                child: MemeImageTemplateWidget(
+                  memeTemplete: memeTemplete,
+                  meme: meme,
+                ),
               ),
-              MemeFormWidget(
-                  changeImageLocation: changeImageLocation,
-                  loadFromGallery: loadFromGallery,
-                  share: share,
-                  formKey: formKey,
-                  isLocalImage: isLocalImage,
-                  context: context,
-                  urlController: urlController,
-                  textController: textController),
+              MemeFormTemplateWidget(
+                meme: meme,
+                call: (Meme newMeme) {
+                  setState(() {
+                    meme = newMeme;
+                  });
+                },
+              ),
             ],
           ),
         ),
@@ -90,20 +71,6 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
 
   void share() {
     shareImageFromKey(screenKey);
-  }
-
-  void changeImageLocation(v) {
-    setState(() {
-      isLocalImage = v;
-    });
-  }
-
-  Future loadFromGallery() async {
-    XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-    setState(() {
-      selectedImage = File(image.path);
-    });
   }
 
   Future<void> shareImageFromKey(GlobalKey key) async {
@@ -121,13 +88,5 @@ class _MemeGeneratorScreenState extends State<MemeGeneratorScreen> {
     Future.delayed(const Duration(seconds: 0), () async {
       Share.shareXFiles([XFile(file.path)], text: 'Демотиватор');
     });
-  }
-
-  void setText(String value) {
-    if (value.isNotEmpty) {
-      setState(() {
-        text = textController.text;
-      });
-    }
   }
 }

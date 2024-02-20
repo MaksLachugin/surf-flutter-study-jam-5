@@ -1,25 +1,23 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:meme_generator/repository/models/meme.dart';
 
 class MemeImageWidget extends StatelessWidget {
   const MemeImageWidget({
     super.key,
-    required this.decoration,
-    required this.isLocalImage,
-    required this.selectedImage,
-    required this.urlController,
-    required this.textController,
+    required this.meme,
   });
-
-  final BoxDecoration decoration;
-  final bool isLocalImage;
-  final File? selectedImage;
-  final TextEditingController urlController;
-  final TextEditingController textController;
+  final Meme meme;
 
   @override
   Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      border: Border.all(
+        color: Colors.white,
+        width: 2,
+      ),
+    );
     return DecoratedBox(
       decoration: decoration,
       child: Padding(
@@ -38,22 +36,13 @@ class MemeImageWidget extends StatelessWidget {
                 decoration: decoration,
                 child: Padding(
                   padding: const EdgeInsets.all(4.0),
-                  child: isLocalImage && selectedImage != null
-                      ? Image.file(
-                          selectedImage!,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.network(
-                          errorBuilder: (buildContext, object, stackTrace) =>
-                              Image.asset("assets/def.jpg", fit: BoxFit.cover),
-                          urlController.text,
-                          fit: BoxFit.cover,
-                        ),
+                  child: getImage(
+                      meme.images[0].isLocal, meme.images[0].selectedImage),
                 ),
               ),
             ),
             Text(
-              textController.text,
+              meme.texts[0],
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: 'Impact',
@@ -65,5 +54,24 @@ class MemeImageWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget getImage(bool isLocalImage, String? selectedImage) {
+    if (selectedImage == null) {
+      return const Placeholder();
+    }
+    return isLocalImage
+        ? Image.file(
+            File(selectedImage),
+            fit: BoxFit.cover,
+            errorBuilder: (buildContext, object, stackTrace) =>
+                Image.asset("assets/def.jpg", fit: BoxFit.cover),
+          )
+        : Image.network(
+            selectedImage,
+            fit: BoxFit.cover,
+            errorBuilder: (buildContext, object, stackTrace) =>
+                Image.asset("assets/def.jpg", fit: BoxFit.cover),
+          );
   }
 }
